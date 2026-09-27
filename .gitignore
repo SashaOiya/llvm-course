@@ -1,0 +1,10 @@
+app
+app-opt
+app-os
+full.bc
+ir_gen
+asm2ir
+asm2fullir
+*.ll
+!app-opt.ll
+!app-os.ll
