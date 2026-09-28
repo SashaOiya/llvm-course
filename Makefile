@@ -1,40 +1,38 @@
+BUILD_DIR = build
+IR_DIR = IR
+
 all: app app-opt app-os
 
-start.ll: start.c
-	clang -emit-llvm -S $^
-sim.ll: sim.c
-	clang -emit-llvm -S $^
-app.ll: app.c
-	clang -emit-llvm -S $^
-full.bc: start.ll sim.ll app.ll
-	llvm-link $^ -o full.bc
+$(BUILD_DIR) $(IR_DIR):
+	mkdir -p $@
 
-app-opt.ll: app.c
-	clang -emit-llvm -S $^ -o $@ -O2
+$(IR_DIR)/%.ll: %.c | $(IR_DIR)
+	clang -emit-llvm -S $< -o $@
 
-app-os.ll: app.c
-	clang -emit-llvm -S $^ -o $@ -Os
+$(IR_DIR)/app-opt.ll: app.c | $(IR_DIR)
+	clang -emit-llvm -S $< -o $@ -O2
 
-SDL2_CFLAGS := $(shell pkg-config --cflags sdl2 2>/dev/null)
-SDL2_LIBS := $(shell pkg-config --libs sdl2 2>/dev/null)
+$(IR_DIR)/app-os.ll: app.c | $(IR_DIR)
+	clang -emit-llvm -S $< -o $@ -Os
 
-app: app.ll start.c sim.c
-	clang $^ $(SDL2_CFLAGS) $(SDL2_LIBS) -o $@
-app-opt: app-opt.ll start.c sim.c
-	clang $^ $(SDL2_CFLAGS) $(SDL2_LIBS) -o $@ -O2
+full.bc: $(IR_DIR)/start.ll $(IR_DIR)/sim.ll $(IR_DIR)/app.ll
+	@command -v llvm-link >/dev/null || { echo "llvm-link not found: install package 'llvm'"; exit 1; }
+	llvm-link $^ -o $@
 
-LLVM_FLAGS = $(shell llvm-config --cppflags --ldflags --libs)
+OPT_opt = -O2
+OPT_os = -Os
 
-ir_gen: sim.c IRGen/app_ir_gen.cpp
-	clang++ $(LLVM_FLAGS) $^ -lSDL2 -o $@
+$(BUILD_DIR)/app: $(IR_DIR)/app.ll start.c sim.c | $(BUILD_DIR)
+	clang $^ -lSDL2 -o $@
 
-asm2ir: sim.c IRGen/app_asm_IRgen_1.cpp
-	clang++ $(LLVM_FLAGS) $^ -lSDL2 -o $@
+$(BUILD_DIR)/app-%: $(IR_DIR)/app-%.ll start.c sim.c | $(BUILD_DIR)
+	clang $^ -lSDL2 -o $@ $(OPT_$*)
 
-asm2fullir: sim.c IRGen/app_asm_IRgen_2.cpp
-	clang++ $(LLVM_FLAGS) $^ -lSDL2 -o $@
+app: $(BUILD_DIR)/app
+app-opt: $(BUILD_DIR)/app-opt
+app-os: $(BUILD_DIR)/app-os
 
 clean:
-	rm -f app app-opt *.ll full.bc ir_gen asm2ir asm2fullir
+	rm -rf $(BUILD_DIR) $(IR_DIR) full.bc
 
-.PHONY: all clean
+.PHONY: all clean app app-opt app-os

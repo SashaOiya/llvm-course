@@ -1,10 +1,4 @@
-app
-app-opt
-app-os
+build/
+IR/
 full.bc
-ir_gen
-asm2ir
-asm2fullir
-*.ll
-!app-opt.ll
-!app-os.ll
+sdlinstall/
