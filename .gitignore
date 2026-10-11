@@ -2,3 +2,6 @@ build/
 IR/
 full.bc
 sdlinstall/
+Pass2_trace/libTracePass.so
+Pass2_trace/maps/
+Pass2_trace/traces/

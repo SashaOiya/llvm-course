@@ -71,3 +71,18 @@ cat IR/app-opt.ll               # вывести весь файл
 ```sh
 make clean      # удаляет build/, IR/ и full.bc
 ```
+
+## Задание 2: трасса использования IR-инструкций (User <- Operand)
+
+Инструментирующий LLVM Pass собирает в рантайме трассу
+`(User <- Operand)` для модуля `app.c` на -O2/-Os (phi-инструкции как
+User пропускаются) и анализирует частые паттерны длины окна 1–5.
+Всё — в `Pass2_trace/`:
+
+```sh
+make app-trace-opt app-trace-os  # инструментированные бинарники
+make trace-run TRACE_SECONDS=6   # собрать трассы
+make trace-report                # отчёты Pass2_trace/reports/
+```
+
+Подробности и результаты: `Pass2_trace/README.md`.

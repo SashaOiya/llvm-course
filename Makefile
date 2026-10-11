@@ -36,3 +36,69 @@ clean:
 	rm -rf $(BUILD_DIR) $(IR_DIR) full.bc
 
 .PHONY: all clean app app-opt app-os
+
+# ============================================================================
+# Задание 2: инструментирующий Pass, трасса (User <- Operand), паттерны 1..5
+# ============================================================================
+
+TRACE_DIR = Pass2_trace
+PASS_LIB = $(TRACE_DIR)/libTracePass.so
+TRACE_MAP_DIR = $(TRACE_DIR)/maps
+TRACE_DATA_DIR = $(TRACE_DIR)/traces
+TRACE_REPORT_DIR = $(TRACE_DIR)/reports
+TRACE_LIMIT ?= 20000000
+TRACE_SECONDS ?= 8
+LLVM_CONFIG ?= llvm-config-18
+
+$(TRACE_MAP_DIR) $(TRACE_DATA_DIR) $(TRACE_REPORT_DIR):
+	mkdir -p $@
+
+$(PASS_LIB): $(TRACE_DIR)/TracePass.cpp
+	clang++ $(shell $(LLVM_CONFIG) --cxxflags) -fPIC -shared $< -o $@
+
+trace-pass-lib: $(PASS_LIB)
+
+# сборка инструментированного приложения: Pass применяется к оптимизированному
+# IR (-O2/-Os) в конце пайплайна, но только к модулю app.c
+build/app-trace-opt: $(PASS_LIB) app.c sim.c start.c $(TRACE_DIR)/trace.c | $(TRACE_MAP_DIR) $(BUILD_DIR)
+	TRACE_MAP=$(TRACE_MAP_DIR)/trace_map_opt.txt clang -O2 -fpass-plugin=$(PASS_LIB) app.c sim.c start.c $(TRACE_DIR)/trace.c -lSDL2 -o $@
+
+build/app-trace-os: $(PASS_LIB) app.c sim.c start.c $(TRACE_DIR)/trace.c | $(TRACE_MAP_DIR) $(BUILD_DIR)
+	TRACE_MAP=$(TRACE_MAP_DIR)/trace_map_os.txt clang -Os -fpass-plugin=$(PASS_LIB) app.c sim.c start.c $(TRACE_DIR)/trace.c -lSDL2 -o $@
+
+app-trace-opt: build/app-trace-opt
+app-trace-os: build/app-trace-os
+
+# инструментированный IR для просмотра
+IR/app-opt-tr.ll: $(PASS_LIB) app.c | $(IR_DIR) $(TRACE_MAP_DIR)
+	TRACE_MAP=$(TRACE_MAP_DIR)/trace_map_opt.txt clang -O2 -fpass-plugin=$(PASS_LIB) -emit-llvm -S app.c -o $@
+
+IR/app-os-tr.ll: $(PASS_LIB) app.c | $(IR_DIR) $(TRACE_MAP_DIR)
+	TRACE_MAP=$(TRACE_MAP_DIR)/trace_map_os.txt clang -Os -fpass-plugin=$(PASS_LIB) -emit-llvm -S app.c -o $@
+
+trace-ir: IR/app-opt-tr.ll IR/app-os-tr.ll
+
+FORCE:
+
+$(TRACE_DATA_DIR)/trace_opt.bin: build/app-trace-opt FORCE
+	$(TRACE_DIR)/run_trace.sh build/app-trace-opt $@ $(TRACE_SECONDS)
+
+$(TRACE_DATA_DIR)/trace_os.bin: build/app-trace-os FORCE
+	$(TRACE_DIR)/run_trace.sh build/app-trace-os $@ $(TRACE_SECONDS)
+
+trace-run: $(TRACE_DATA_DIR)/trace_opt.bin $(TRACE_DATA_DIR)/trace_os.bin
+
+$(TRACE_REPORT_DIR)/report_opt.txt: $(TRACE_DATA_DIR)/trace_opt.bin $(TRACE_MAP_DIR)/trace_map_opt.txt $(TRACE_DIR)/analyze.py
+	python3 $(TRACE_DIR)/analyze.py --map $(TRACE_MAP_DIR)/trace_map_opt.txt --trace $< --limit $(TRACE_LIMIT) --top 20 > $@
+	@echo "report: $@"
+
+$(TRACE_REPORT_DIR)/report_os.txt: $(TRACE_DATA_DIR)/trace_os.bin $(TRACE_MAP_DIR)/trace_map_os.txt $(TRACE_DIR)/analyze.py
+	python3 $(TRACE_DIR)/analyze.py --map $(TRACE_MAP_DIR)/trace_map_os.txt --trace $< --limit $(TRACE_LIMIT) --top 20 > $@
+	@echo "report: $@"
+
+trace-report: $(TRACE_REPORT_DIR)/report_opt.txt $(TRACE_REPORT_DIR)/report_os.txt
+
+trace-clean:
+	rm -rf $(TRACE_MAP_DIR) $(TRACE_DATA_DIR) $(TRACE_REPORT_DIR)
+
+.PHONY: trace-pass-lib app-trace-opt app-trace-os trace-ir trace-run trace-report trace-clean

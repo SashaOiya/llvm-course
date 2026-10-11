@@ -1,0 +1,153 @@
+=== Отчёт: частые паттерны использования IR-инструкций ===
+map:   Pass2_trace/maps/trace_map_os.txt
+trace: Pass2_trace/traces/trace_os.bin
+limit: 20000000  step: 1  символ: user<-operand opcode
+всего событий: 20000000, неизвестных id: 0, разных user-opcode: 11
+
+-- Топ исполнявшихся user-инструкций (динамически, n=1 без операнда) --
+   getelementptr      6139000   30.70%
+   fadd              3062826   15.31%
+   load              2552355   12.76%
+   call              2045440   10.23%
+   add               1550588    7.75%
+   icmp              1036165    5.18%
+   br                1034137    5.17%
+   store             1030446    5.15%
+   and               1030158    5.15%
+   trunc              517107    2.59%
+
+--- Паттерны длины окна 1 (всего окон: 20000000, разных паттернов: 21) ---
+  #1   getelementptr<-phi                    4093272  20.466%  cum(top-20): 20.466%
+         пример:   %6 = getelementptr inbounds [256 x [256 x float]], ptr @app.u, i64 0, i64 %2, i64 %5
+  #2   load<-getelementptr                   2552355  12.762%  cum(top-20): 33.228%
+         пример:   %32 = load float, ptr %31, align 4, !tbaa !5
+  #3   getelementptr<-add                    2045728  10.229%  cum(top-20): 43.457%
+         пример:   %6 = getelementptr inbounds [256 x [256 x float]], ptr @app.u, i64 0, i64 %2, i64 %5
+  #4   fadd<-load                            2041884  10.209%  cum(top-20): 53.666%
+         пример:   %37 = fadd float %34, %36
+  #5   add<-phi                              1031703   5.159%  cum(top-20): 58.825%
+         пример:   %5 = add i64 %4, 116
+  #6   and<-icmp                             1030158   5.151%  cum(top-20): 63.976%
+         пример:   %27 = and i1 %19, %26
+  #7   fadd<-fadd                            1020942   5.105%  cum(top-20): 69.080%
+         пример:   %41 = fadd float %37, %40
+  #8   call<-load                            1020942   5.105%  cum(top-20): 74.185%
+         пример:   %46 = tail call float @llvm.fmuladd.f32(float %32, float -4.000000e+00, float %45)
+  #9   icmp<-add                              521087   2.605%  cum(top-20): 76.790%
+         пример:   %9 = icmp eq i64 %8, 24
+  #10  br<-icmp                               519058   2.595%  cum(top-20): 79.386%
+         пример:   br i1 %9, label %10, label %3, !llvm.loop !9
+  #11  trunc<-phi                             517107   2.586%  cum(top-20): 81.971%
+         пример:   %17 = trunc i64 %16 to i32
+  #12  add<-trunc                             517107   2.586%  cum(top-20): 84.557%
+         пример:   %18 = add i32 %17, -116
+  #13  store<-getelementptr                   515367   2.577%  cum(top-20): 87.134%
+         пример:   store <4 x float> <float 1.000000e+02, float 1.000000e+02, float 1.000000e+02, float 1.000000e+02>, ptr %6, align 16, !tbaa !5
+  #14  br<-and                                515079   2.575%  cum(top-20): 89.709%
+         пример:   br i1 %27, label %28, label %30
+  #15  store<-phi                             515079   2.575%  cum(top-20): 92.284%
+         пример:   store float %50, ptr %51, align 4
+  #16  icmp<-phi                              515078   2.575%  cum(top-20): 94.860%
+         пример:   %52 = icmp eq i64 %49, 255
+  #17  call<-fadd                             510471   2.552%  cum(top-20): 97.412%
+         пример:   %46 = tail call float @llvm.fmuladd.f32(float %32, float -4.000000e+00, float %45)
+  #18  call<-call                             510471   2.552%  cum(top-20): 99.964%
+         пример:   %47 = tail call float @llvm.fmuladd.f32(float %46, float 0x3FCC28F5C0000000, float %32)
+  #19  call<-getelementptr                      3556   0.018%  cum(top-20): 99.982%
+         пример:   tail call void @llvm.memcpy.p0.p0.i64(ptr noundef nonnull align 4 dereferenceable(1016) %59, ptr noundef nonnull align 4 dereferenceable(1016) %60, i64 1016, i1 false), !tbaa !5
+  #20  shl<-phi                                 1778   0.009%  cum(top-20): 99.991%
+         пример:   %57 = shl nuw nsw i64 %56, 10
+   топ-10 покрывает 79.39% всех окон
+
+--- Паттерны длины окна 2 (всего окон: 19999999, разных паттернов: 46) ---
+  #1   getelementptr<-phi  load<-getelementptr      1531413   7.657%  cum(top-20):  7.657%
+  #2   add<-phi  getelementptr<-phi          1025694   5.128%  cum(top-20): 12.786%
+  #3   getelementptr<-phi  getelementptr<-phi      1025550   5.128%  cum(top-20): 17.913%
+  #4   getelementptr<-phi  getelementptr<-add      1021230   5.106%  cum(top-20): 23.019%
+  #5   load<-getelementptr  getelementptr<-add      1020942   5.105%  cum(top-20): 28.124%
+  #6   getelementptr<-add  getelementptr<-phi      1020942   5.105%  cum(top-20): 33.229%
+  #7   fadd<-load  add<-phi                  1020942   5.105%  cum(top-20): 38.334%
+  #8   getelementptr<-add  load<-getelementptr      1020942   5.105%  cum(top-20): 43.438%
+  #9   load<-getelementptr  fadd<-fadd       1020942   5.105%  cum(top-20): 48.543%
+  #10  fadd<-fadd  fadd<-load                1020942   5.105%  cum(top-20): 53.648%
+  #11  trunc<-phi  add<-trunc                 517107   2.586%  cum(top-20): 56.233%
+  #12  add<-trunc  icmp<-add                  517107   2.586%  cum(top-20): 58.819%
+  #13  br<-icmp  trunc<-phi                   515079   2.575%  cum(top-20): 61.394%
+  #14  icmp<-add  and<-icmp                   515079   2.575%  cum(top-20): 63.970%
+  #15  and<-icmp  and<-icmp                   515079   2.575%  cum(top-20): 66.545%
+  #16  and<-icmp  br<-and                     515079   2.575%  cum(top-20): 69.120%
+  #17  getelementptr<-phi  store<-phi         515079   2.575%  cum(top-20): 71.696%
+  #18  store<-phi  store<-getelementptr       515079   2.575%  cum(top-20): 74.271%
+  #19  store<-getelementptr  icmp<-phi        515078   2.575%  cum(top-20): 76.847%
+  #20  icmp<-phi  br<-icmp                    515078   2.575%  cum(top-20): 79.422%
+   топ-10 покрывает 53.65% всех окон
+
+--- Паттерны длины окна 3 (всего окон: 19999998, разных паттернов: 58) ---
+  #1   add<-phi  getelementptr<-phi  getelementptr<-add      1021086   5.105%  cum(top-20):  5.105%
+  #2   getelementptr<-phi  load<-getelementptr  getelementptr<-add      1020942   5.105%  cum(top-20): 10.210%
+  #3   load<-getelementptr  getelementptr<-add  getelementptr<-phi      1020942   5.105%  cum(top-20): 15.315%
+  #4   getelementptr<-add  getelementptr<-phi  load<-getelementptr      1020942   5.105%  cum(top-20): 20.420%
+  #5   fadd<-load  add<-phi  getelementptr<-phi      1020942   5.105%  cum(top-20): 25.524%
+  #6   getelementptr<-phi  getelementptr<-add  load<-getelementptr      1020942   5.105%  cum(top-20): 30.629%
+  #7   getelementptr<-add  load<-getelementptr  fadd<-fadd      1020942   5.105%  cum(top-20): 35.734%
+  #8   load<-getelementptr  fadd<-fadd  fadd<-load      1020942   5.105%  cum(top-20): 40.838%
+  #9   trunc<-phi  add<-trunc  icmp<-add       517107   2.586%  cum(top-20): 43.424%
+  #10  br<-icmp  trunc<-phi  add<-trunc       515079   2.575%  cum(top-20): 45.999%
+  #11  add<-trunc  icmp<-add  and<-icmp       515079   2.575%  cum(top-20): 48.575%
+  #12  icmp<-add  and<-icmp  and<-icmp        515079   2.575%  cum(top-20): 51.150%
+  #13  and<-icmp  and<-icmp  br<-and          515079   2.575%  cum(top-20): 53.726%
+  #14  getelementptr<-phi  getelementptr<-phi  store<-phi       515079   2.575%  cum(top-20): 56.301%
+  #15  getelementptr<-phi  store<-phi  store<-getelementptr       515079   2.575%  cum(top-20): 58.876%
+  #16  store<-phi  store<-getelementptr  icmp<-phi       515078   2.575%  cum(top-20): 61.452%
+  #17  store<-getelementptr  icmp<-phi  br<-icmp       515078   2.575%  cum(top-20): 64.027%
+  #18  icmp<-phi  br<-icmp  trunc<-phi        513051   2.565%  cum(top-20): 66.592%
+  #19  and<-icmp  br<-and  getelementptr<-phi       510471   2.552%  cum(top-20): 69.145%
+  #20  br<-and  getelementptr<-phi  getelementptr<-phi       510471   2.552%  cum(top-20): 71.697%
+   топ-10 покрывает 46.00% всех окон
+
+--- Паттерны длины окна 4 (всего окон: 19999997, разных паттернов: 69) ---
+  #1   getelementptr<-phi  load<-getelementptr  getelementptr<-add  getelementptr<-phi      1020942   5.105%  cum(top-20):  5.105%
+  #2   load<-getelementptr  getelementptr<-add  getelementptr<-phi  load<-getelementptr      1020942   5.105%  cum(top-20): 10.209%
+  #3   fadd<-load  add<-phi  getelementptr<-phi  getelementptr<-add      1020942   5.105%  cum(top-20): 15.314%
+  #4   add<-phi  getelementptr<-phi  getelementptr<-add  load<-getelementptr      1020942   5.105%  cum(top-20): 20.419%
+  #5   getelementptr<-phi  getelementptr<-add  load<-getelementptr  fadd<-fadd      1020942   5.105%  cum(top-20): 25.524%
+  #6   getelementptr<-add  load<-getelementptr  fadd<-fadd  fadd<-load      1020942   5.105%  cum(top-20): 30.628%
+  #7   br<-icmp  trunc<-phi  add<-trunc  icmp<-add       515079   2.575%  cum(top-20): 33.204%
+  #8   trunc<-phi  add<-trunc  icmp<-add  and<-icmp       515079   2.575%  cum(top-20): 35.779%
+  #9   add<-trunc  icmp<-add  and<-icmp  and<-icmp       515079   2.575%  cum(top-20): 38.354%
+  #10  icmp<-add  and<-icmp  and<-icmp  br<-and       515079   2.575%  cum(top-20): 40.930%
+  #11  getelementptr<-phi  getelementptr<-phi  store<-phi  store<-getelementptr       515079   2.575%  cum(top-20): 43.505%
+  #12  getelementptr<-phi  store<-phi  store<-getelementptr  icmp<-phi       515078   2.575%  cum(top-20): 46.081%
+  #13  store<-phi  store<-getelementptr  icmp<-phi  br<-icmp       515078   2.575%  cum(top-20): 48.656%
+  #14  store<-getelementptr  icmp<-phi  br<-icmp  trunc<-phi       513051   2.565%  cum(top-20): 51.221%
+  #15  icmp<-phi  br<-icmp  trunc<-phi  add<-trunc       513051   2.565%  cum(top-20): 53.787%
+  #16  and<-icmp  and<-icmp  br<-and  getelementptr<-phi       510471   2.552%  cum(top-20): 56.339%
+  #17  and<-icmp  br<-and  getelementptr<-phi  getelementptr<-phi       510471   2.552%  cum(top-20): 58.891%
+  #18  br<-and  getelementptr<-phi  getelementptr<-phi  load<-getelementptr       510471   2.552%  cum(top-20): 61.444%
+  #19  getelementptr<-phi  getelementptr<-phi  load<-getelementptr  getelementptr<-add       510471   2.552%  cum(top-20): 63.996%
+  #20  getelementptr<-add  getelementptr<-phi  load<-getelementptr  getelementptr<-add       510471   2.552%  cum(top-20): 66.548%
+   топ-10 покрывает 40.93% всех окон
+
+--- Паттерны длины окна 5 (всего окон: 19999996, разных паттернов: 78) ---
+  #1   getelementptr<-phi  load<-getelementptr  getelementptr<-add  getelementptr<-phi  load<-getelementptr      1020942   5.105%  cum(top-20):  5.105%
+  #2   fadd<-load  add<-phi  getelementptr<-phi  getelementptr<-add  load<-getelementptr      1020942   5.105%  cum(top-20): 10.209%
+  #3   add<-phi  getelementptr<-phi  getelementptr<-add  load<-getelementptr  fadd<-fadd      1020942   5.105%  cum(top-20): 15.314%
+  #4   getelementptr<-phi  getelementptr<-add  load<-getelementptr  fadd<-fadd  fadd<-load      1020942   5.105%  cum(top-20): 20.419%
+  #5   trunc<-phi  add<-trunc  icmp<-add  and<-icmp  and<-icmp       515079   2.575%  cum(top-20): 22.994%
+  #6   add<-trunc  icmp<-add  and<-icmp  and<-icmp  br<-and       515079   2.575%  cum(top-20): 25.570%
+  #7   getelementptr<-phi  getelementptr<-phi  store<-phi  store<-getelementptr  icmp<-phi       515078   2.575%  cum(top-20): 28.145%
+  #8   getelementptr<-phi  store<-phi  store<-getelementptr  icmp<-phi  br<-icmp       515078   2.575%  cum(top-20): 30.720%
+  #9   store<-phi  store<-getelementptr  icmp<-phi  br<-icmp  trunc<-phi       513051   2.565%  cum(top-20): 33.286%
+  #10  store<-getelementptr  icmp<-phi  br<-icmp  trunc<-phi  add<-trunc       513051   2.565%  cum(top-20): 35.851%
+  #11  icmp<-phi  br<-icmp  trunc<-phi  add<-trunc  icmp<-add       513051   2.565%  cum(top-20): 38.416%
+  #12  br<-icmp  trunc<-phi  add<-trunc  icmp<-add  and<-icmp       513051   2.565%  cum(top-20): 40.981%
+  #13  icmp<-add  and<-icmp  and<-icmp  br<-and  getelementptr<-phi       510471   2.552%  cum(top-20): 43.534%
+  #14  and<-icmp  and<-icmp  br<-and  getelementptr<-phi  getelementptr<-phi       510471   2.552%  cum(top-20): 46.086%
+  #15  and<-icmp  br<-and  getelementptr<-phi  getelementptr<-phi  load<-getelementptr       510471   2.552%  cum(top-20): 48.639%
+  #16  br<-and  getelementptr<-phi  getelementptr<-phi  load<-getelementptr  getelementptr<-add       510471   2.552%  cum(top-20): 51.191%
+  #17  getelementptr<-phi  getelementptr<-phi  load<-getelementptr  getelementptr<-add  getelementptr<-phi       510471   2.552%  cum(top-20): 53.743%
+  #18  load<-getelementptr  getelementptr<-add  getelementptr<-phi  load<-getelementptr  getelementptr<-add       510471   2.552%  cum(top-20): 56.296%
+  #19  getelementptr<-add  getelementptr<-phi  load<-getelementptr  getelementptr<-add  getelementptr<-phi       510471   2.552%  cum(top-20): 58.848%
+  #20  load<-getelementptr  getelementptr<-add  getelementptr<-phi  load<-getelementptr  fadd<-load       510471   2.552%  cum(top-20): 61.400%
+   топ-10 покрывает 35.85% всех окон
+
