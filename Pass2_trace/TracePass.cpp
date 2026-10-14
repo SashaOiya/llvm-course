@@ -1,23 +1,3 @@
-// TracePass.cpp
-//
-// Инструментирующий LLVM Pass (New Pass Manager, плагин для clang).
-//
-// Задание 2: собрать в рантайме трассу использования IR-инструкций
-// (User <- Operand) приложения app.c на -O2/-Os.
-//
-// Что делает Pass:
-//   1. Работает только над модулем, скомпилированным из app.c
-//      (проверка source file name модуля заканчивается на "app.c").
-//   2. Присваивает каждой инструкции стабильный числовой id и пишет
-//      статическую карту id -> (opcode, function, печать инструкции)
-//      в файл из переменной окружения TRACE_MAP (по умолчанию trace_map.txt).
-//   3. Для каждой НЕ-phi инструкции-пользователя (User) и каждого её
-//      операнда-инструкции (Operand) вставляет перед User вызов
-//          void traceLogger(uint64 user_id, uint64 operand_id)
-//      определённый в trace.c. В рантайме при каждом исполнении User
-//      этот вызов пишет пару (user_id, operand_id) в бинарный файл
-//      TRACE_FILE (см. trace.c).
-
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
@@ -57,7 +37,6 @@ struct TraceInstrPass : public PassInfoMixin<TraceInstrPass> {
         FunctionType::get(Type::getVoidTy(Ctx), {i64Ty, i64Ty}, false);
     FunctionCallee traceLogger = M.getOrInsertFunction("traceLogger", logTy);
 
-    // --- 1. Стабильные id для всех инструкций функций app.c ---
     DenseMap<const Instruction *, uint64_t> Ids;
     uint64_t nextId = 1;
     for (Function &F : M) {
@@ -69,7 +48,6 @@ struct TraceInstrPass : public PassInfoMixin<TraceInstrPass> {
     }
     outs() << "[TracePass] assigned " << (nextId - 1) << " ids\n";
 
-    // --- 2. Статическая карта id -> описание инструкции ---
     std::error_code EC;
     raw_fd_ostream map(mapFilePath(), EC,
                        sys::fs::OF_Text);
@@ -97,9 +75,6 @@ struct TraceInstrPass : public PassInfoMixin<TraceInstrPass> {
       }
     }
 
-    // --- 3. Инструментирование: traceLogger(user_id, operand_id) ---
-    // Пропускаем User'ов, являющихся phi-инструкциями (по условию задания).
-    // Операнд учитываем только если это инструкция (не константа/аргумент/блок).
     IRBuilder<> builder(Ctx);
     for (Function &F : M) {
       if (F.isDeclaration())
@@ -132,8 +107,6 @@ struct TraceInstrPass : public PassInfoMixin<TraceInstrPass> {
 
 PassPluginLibraryInfo getPassPluginInfo() {
   const auto callback = [](PassBuilder &PB) {
-    // Инструментируем уже оптимизированный IR (конец пайплайна -O2/-Os),
-    // чтобы трасса соответствовала реально исполняемому коду.
     PB.registerOptimizerLastEPCallback(
         [](ModulePassManager &MPM, OptimizationLevel) {
           MPM.addPass(TraceInstrPass{});
