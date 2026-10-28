@@ -102,3 +102,30 @@ trace-clean:
 	rm -rf $(TRACE_MAP_DIR) $(TRACE_DATA_DIR) $(TRACE_REPORT_DIR)
 
 .PHONY: trace-pass-lib app-trace-opt app-trace-os trace-ir trace-run trace-report trace-clean
+
+# ============================================================================
+# Задание 3: IR-генератор логического модуля + интерпретация в ExecutionEngine
+# ============================================================================
+
+IRGEN_DIR = IRGen
+IRGEN_BIN = $(IRGEN_DIR)/app_ir_gen
+IRGEN_OBJ = $(BUILD_DIR)/sim_irgen.o
+IRGEN_FLAGS ?= -DFRAMES=1
+
+$(IRGEN_OBJ): sim.c sim.h | $(BUILD_DIR)
+	$(CC) -c $< -o $@
+
+$(IRGEN_BIN): $(IRGEN_DIR)/app_ir_gen.cpp $(IRGEN_OBJ)
+	$(CXX) $(shell $(LLVM_CONFIG) --cxxflags) $(IRGEN_FLAGS) $(IRGEN_DIR)/app_ir_gen.cpp $(IRGEN_OBJ) -lSDL2 -o $@ -Wl,--export-dynamic $(shell $(LLVM_CONFIG) --ldflags --libs --system-libs)
+
+irgen: $(IRGEN_BIN)
+
+# с окном: закрыть вручную (или IRGEN_AUTOQUIT=1)
+irgen-run: irgen
+	./$(IRGEN_BIN)
+
+# headless: dummy-видео + автозакрытие окна
+irgen-run-dummy: irgen
+	SDL_VIDEODRIVER=dummy IRGEN_AUTOQUIT=1 ./$(IRGEN_BIN)
+
+.PHONY: irgen irgen-run irgen-run-dummy

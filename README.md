@@ -86,3 +86,25 @@ make trace-report                # отчёты Pass2_trace/reports/
 ```
 
 Подробности и результаты: `Pass2_trace/README.md`.
+
+## Задание 3: IR-генератор логического модуля + интерпретация в ExecutionEngine
+
+`IRGen/app_ir_gen.cpp` генерирует IR модуля `app.c` вручную через IRBuilder
+(глобальные `u`/`next_u`, phi-циклы диффузии, цвета, вызовы `simPutPixel`) — в модуле
+только функции, реально вызванные при исполнении: определение `app()` и объявления
+внешних графических функций `simPutPixel`/`simFlush`. Далее IR исполняется
+интерпретатором LLVM (EngineKind::Interpreter) через `runFunction(app)`; графические
+функции пробрасываются на нативные `sim.c` (Interpreter находит их по имени символа
+через libffi; бинарь линкуется с `-Wl,--export-dynamic`). Бесконечный `while(1)`
+заменён на конечное число кадров (`-DFRAMES`, по умолчанию 1), чтобы интерпретация
+завершилась.
+
+```sh
+make irgen            # IRGen/app_ir_gen (+build/sim_irgen.o)
+make irgen-run        # с окном; закрыть вручную или IRGEN_AUTOQUIT=1
+make irgen-run-dummy  # headless: SDL_VIDEODRIVER=dummy + автозакрытие
+make irgen IRGEN_FLAGS=-DFRAMES=2   # 2 кадра
+```
+
+Проверено: `[VERIFICATION] OK`, defined functions: `app`, external: `simPutPixel simFlush`,
+`[EE] app() finished, result: 0`, ~1.7 c/кадр в интерпретаторе (256x256).
