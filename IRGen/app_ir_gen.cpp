@@ -1,24 +1,3 @@
-// app_ir_gen.cpp
-//
-// Задание 3: IR-генератор логического модуля графического приложения и
-// интерпретация сгенерированного IR в ExecutionEngine.
-//
-// По образцу курса (SDL/IRGen/app_ir_gen.cpp):
-//   * модуль "app.c" собирается не clang'ом, а вручную через IRBuilder;
-//   * в модуль входят ТОЛЬКО функции, реально вызванные во время исполнения:
-//       - app()      -- определение (логический модуль, нет других функций);
-//       - simPutPixel, simFlush -- объявления внешних графических функций,
-//         которые пробрасываются в ExecutionEngine (InstallLazyFunctionCreator);
-//     simInit()/simExit() вызываются нативной частью раннера и в IR не входят.
-//   * сгенерированный IR исполняется интерпретатором LLVM (EngineKind::Interpreter).
-//
-// Отличия от app.c:
-//   * бесконечный while(1) заменён на конечное число кадров (FRAMES),
-//     иначе интерпретация никогда не вернётся из runFunction();
-//   * аргументы simPutPixel(y, x, argb) переданы в том же порядке, что в app.c.
-//
-// Сборка: см. цели irgen / irgen-run / irgen-run-dummy в Makefile.
-
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/IR/Constants.h"
@@ -41,7 +20,6 @@ extern "C" {
 
 using namespace llvm;
 
-// Параметры логического модуля (должны совпадать с app.c)
 static constexpr int WIDTH = 256;
 static constexpr int HEIGHT = 256;
 static constexpr int SUB_STEPS = 8;
@@ -63,7 +41,6 @@ int main() {
   Type *f32 = B.getFloatTy();
   Type *voidTy = B.getVoidTy();
 
-  // ---- Глобальные статические массивы u, next_u (как в app.c) ----
   ArrayType *rowTy = ArrayType::get(f32, WIDTH);
   ArrayType *gridTy = ArrayType::get(rowTy, HEIGHT);
   auto *u = new GlobalVariable(*module, gridTy, false,
@@ -74,13 +51,11 @@ int main() {
                                    ConstantAggregateZero::get(gridTy),
                                    "next_u");
 
-  // ---- Внешние графические функции, вызванные модулем при исполнении ----
   FunctionCallee simPutPixelF = module->getOrInsertFunction(
       "simPutPixel", FunctionType::get(voidTy, {i32, i32, i32}, false));
   FunctionCallee simFlushF = module->getOrInsertFunction(
       "simFlush", FunctionType::get(voidTy, false));
 
-  // ---- app() ----
   Function *appF = Function::Create(FunctionType::get(voidTy, false),
                                     Function::ExternalLinkage, "app", module);
 
@@ -354,7 +329,6 @@ int main() {
       outs() << " " << F.getName();
   outs() << "\n";
 
-  // ---- интерпретация в ExecutionEngine с пробросом графических функций ----
   InitializeNativeTarget();
   InitializeNativeTargetAsmPrinter();
 
@@ -381,8 +355,6 @@ int main() {
   GenericValue v = ee->runFunction(appF, {});
   outs() << "[EE] app() finished, result: " << v.IntVal << "\n";
 
-  // в headless-режиме (IRGEN_AUTOQUIT=1) закрыть окно программно,
-  // иначе simExit() будет ждать SDL_QUIT (клик по окну) — как в примере курса
   if (getenv("IRGEN_AUTOQUIT")) {
     SDL_Event q;
     std::memset(&q, 0, sizeof(q));
