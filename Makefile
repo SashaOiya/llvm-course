@@ -129,3 +129,50 @@ irgen-run-dummy: irgen
 	SDL_VIDEODRIVER=dummy IRGEN_AUTOQUIT=1 ./$(IRGEN_BIN)
 
 .PHONY: irgen irgen-run irgen-run-dummy
+
+# ============================================================================
+# Задание 4: свой ISA + ASM + ASM2IR-генераторы (эмуляция / IR-эквиваленты)
+# Описание ISA - IRGen/ISA.md; программа - IRGen/app_asm.s
+# ============================================================================
+
+ASM_RT = $(IRGEN_DIR)/app_asm_runtime
+ASM_RT_OBJ = $(BUILD_DIR)/app_asm_runtime.o
+ASM_FILE = $(IRGEN_DIR)/app_asm.s
+ASM_SIM_BIN = $(IRGEN_DIR)/app_asm_sim
+ASM_IRG1_BIN = $(IRGEN_DIR)/app_asm_IRgen_1
+ASM_IRG2_BIN = $(IRGEN_DIR)/app_asm_IRgen_2
+
+# эмуляторы компилируются как C, без fma-контракции (биты float = IR)
+$(ASM_RT_OBJ): $(ASM_RT).c $(ASM_RT).h | $(BUILD_DIR)
+	$(CC) -c -ffp-contract=off $< -o $@
+
+# п.5*: симуляция без генерации IR (только эмулирующие функции)
+$(ASM_SIM_BIN): $(IRGEN_DIR)/app_asm_sim.cpp $(IRGEN_DIR)/app_asm_common.h $(ASM_RT_OBJ) $(IRGEN_OBJ)
+	$(CXX) $< $(ASM_RT_OBJ) $(IRGEN_OBJ) -lSDL2 -o $@
+
+# п.3: вызовы эмулирующих функций + EE
+$(ASM_IRG1_BIN): $(IRGEN_DIR)/app_asm_IRgen_1.cpp $(IRGEN_DIR)/app_asm_common.h $(ASM_RT_OBJ) $(IRGEN_OBJ)
+	$(CXX) $(shell $(LLVM_CONFIG) --cxxflags) $< $(ASM_RT_OBJ) $(IRGEN_OBJ) -lSDL2 -o $@ -Wl,--export-dynamic $(shell $(LLVM_CONFIG) --ldflags --libs --system-libs)
+
+# п.4: IR-эквиваленты всех инструкций + EE
+$(ASM_IRG2_BIN): $(IRGEN_DIR)/app_asm_IRgen_2.cpp $(IRGEN_DIR)/app_asm_common.h $(ASM_RT_OBJ) $(IRGEN_OBJ)
+	$(CXX) $(shell $(LLVM_CONFIG) --cxxflags) $< $(ASM_RT_OBJ) $(IRGEN_OBJ) -lSDL2 -o $@ -Wl,--export-dynamic $(shell $(LLVM_CONFIG) --ldflags --libs --system-libs)
+
+asm-build: $(ASM_SIM_BIN) $(ASM_IRG1_BIN) $(ASM_IRG2_BIN)
+
+asm-sim: $(ASM_SIM_BIN)
+	./$(ASM_SIM_BIN) $(ASM_FILE)
+
+asm-irgen-1: $(ASM_IRG1_BIN)
+	./$(ASM_IRG1_BIN) $(ASM_FILE)
+
+asm-irgen-2: $(ASM_IRG2_BIN)
+	./$(ASM_IRG2_BIN) $(ASM_FILE)
+
+# все три варианта headless; хэши пикселей и данных должны совпасть
+asm-run-dummy:
+	SDL_VIDEODRIVER=dummy ./$(ASM_SIM_BIN) $(ASM_FILE)
+	SDL_VIDEODRIVER=dummy ./$(ASM_IRG1_BIN) $(ASM_FILE)
+	SDL_VIDEODRIVER=dummy ./$(ASM_IRG2_BIN) $(ASM_FILE)
+
+.PHONY: asm-build asm-sim asm-irgen-1 asm-irgen-2 asm-run-dummy

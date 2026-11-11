@@ -108,3 +108,37 @@ make irgen IRGEN_FLAGS=-DFRAMES=2   # 2 кадра
 
 Проверено: `[VERIFICATION] OK`, defined functions: `app`, external: `simPutPixel simFlush`,
 `[EE] app() finished, result: 0`, ~1.7 c/кадр в интерпретаторе (256x256).
+
+## Задание 4: свой ISA, ASM и ASM2IR-генераторы
+
+1) **Свой набор инструкций** — `IRGen/ISA.md`: регистровая машина (x0..x15),
+линейный сегмент данных DS (u, next_u), инструкции подобраны по статистике
+задания 2 (getelementptr 30.7% -> адресная арифметика, fadd/fmuladd -> FADD/
+FMULADD, load/store -> LD/ST, icmp/and/br -> CMP*/AND/BR_COND и т.д.) и по IR
+приложения (FTCI, CMPGEi/CMPLTi, FCMPLTi для отрисовки).
+2) **Приложение на своём ASM** — `IRGen/app_asm.s` (172 строки): нули,
+квадрат-источник, 8 кадров x 8 подшагов диффузии, копирование, отрисовка
+с цветами и `PUT_PIXEL`/`FLUSH`/`EXIT`.
+
+**ASM2IR-генераторы** (общий парсер — `IRGen/app_asm_common.h`):
+3) `IRGen/app_asm_IRgen_1.cpp` — каждая инструкция -> вызов эмулирующей
+функции `do_*` (`IRGen/app_asm_runtime.c`), кроме потока управления
+(BR/BR_COND/EXIT -> настоящие IR-переходы); запуск на ExecutionEngine (JIT).
+4) `IRGen/app_asm_IRgen_2.cpp` — для каждой инструкции генерируются
+IR-эквиваленты (GEP/load/store, битовые операции, f32 через bitcast
+i32<->f32, FPToSI, icmp/fcmp с zext); запуск на ExecutionEngine (JIT).
+5*) `IRGen/app_asm_sim.cpp` — симуляция без генерации IR: цикл по PC вызывает
+те же эмулирующие функции (поток управления исполняется в симуляторе).
+
+```sh
+make asm-build        # собрать все три (+ рантайм)
+make asm-sim          # п.5*: симуляция
+make asm-irgen-1      # п.3: эмуляция вызовами + EE
+make asm-irgen-2      # п.4: IR-эквиваленты + EE
+make asm-run-dummy    # все три headless
+```
+
+Проверено: `[VERIFICATION] OK`; все три варианта дают бит-в-бит одинаковый
+результат: `pixels: 524288 (8 кадров), pixel-hash: 0x1a9931984b767925,
+data-hash: 0x56ba9ad6a7e3f115`; время (8 кадров): симуляция ~1.6 с,
+эмуляция вызовами ~0.8 с, IR-эквиваленты ~0.1 с.
